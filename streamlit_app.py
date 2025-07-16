@@ -4,6 +4,8 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import time
+from sklearn.linear_model import LinearRegression
+import numpy as np
 
 st.title("Intelligent Stock Portfolio Tracker")
 
@@ -15,7 +17,7 @@ if "portfolio" not in st.session_state:
 with st.form("manual_input"):
     st.write("### Add a Stock to Your Portfolio")
     ticker_input = st.text_input("Ticker (e.g. AAPL)").upper()
-    shares_input = st.number_input("Shares Owned", min_value=0.0001, format="%.4f")
+    shares_input = st.number_input("Shares Owned", min_value=0.0001, step=0.0001, format="%.4f")
     submitted = st.form_submit_button("Add to Portfolio")
 
     if submitted:
@@ -69,13 +71,33 @@ if not st.session_state.portfolio.empty:
             cagr = 0.08
             future_values = {f"{n}y": round(total_value * (1 + cagr) ** n, 2) for n in [1, 3, 5]}
 
+            # Linear regression for price prediction (last 90 days)
+            hist_recent = hist[-90:].copy()
+            hist_recent = hist_recent.reset_index()
+            hist_recent["Days"] = (hist_recent["Date"] - hist_recent["Date"].min()).dt.days
+            X = hist_recent[["Days"]]
+            y = hist_recent["Close"]
+
+            model = LinearRegression()
+            model.fit(X, y)
+            current_day = hist_recent["Days"].max()
+            predicted_today = model.predict([[current_day]])[0]
+            predicted_in_30 = model.predict([[current_day + 30]])[0]
+
+            est_buy = round(predicted_today * 0.95, 2)  # 5% below trend price
+            est_sell = round(predicted_in_30, 2)
+
+            signal = "BUY" if avg_50 > avg_200 else "HOLD"
+
             projections.append({
                 "Ticker": ticker,
                 "Current Price": round(current_price, 2),
                 "Total Value": round(total_value, 2),
                 "50-Day MA": round(avg_50, 2),
                 "200-Day MA": round(avg_200, 2),
-                "Signal": "BUY" if avg_50 > avg_200 else "HOLD",
+                "Signal": signal,
+                "Est. Buy Price": est_buy,
+                "Est. Sell Price": est_sell,
                 **future_values
             })
 
@@ -85,7 +107,9 @@ if not st.session_state.portfolio.empty:
             ax.plot(hist.index, hist["Close"], label="Close Price")
             ax.plot(hist.index, hist["Close"].rolling(window=50).mean(), label="50-Day MA")
             ax.plot(hist.index, hist["Close"].rolling(window=200).mean(), label="200-Day MA")
-            ax.set_title(f"{ticker} Price Trend")
+            ax.axhline(est_buy, color='green', linestyle='--', label='Est. Buy Price (5% below trend)')
+            ax.axhline(est_sell, color='red', linestyle='--', label='Est. Sell Price (30 days ahead)')
+            ax.set_title(f"{ticker} Price Trend & Predictions")
             ax.legend()
             st.pyplot(fig)
 
@@ -95,7 +119,7 @@ if not st.session_state.portfolio.empty:
 
     if projections:
         proj_df = pd.DataFrame(projections)
-        st.write("### 💡 Portfolio Insights")
+        st.write("### 💡 Portfolio Insights with Estimated Buy/Sell Prices")
         st.dataframe(proj_df)
 else:
     st.info("Add stocks manually above or upload a CSV to get started!")
