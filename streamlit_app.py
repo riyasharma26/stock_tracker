@@ -8,7 +8,7 @@ from sklearn.linear_model import LinearRegression
 import numpy as np
 import io
 
-st.title("📈 Intelligent Stock Portfolio Tracker")
+st.title("Intelligent Stock Portfolio Tracker")
 
 # Initialize session state to hold portfolio data
 if "portfolio" not in st.session_state:
@@ -16,7 +16,7 @@ if "portfolio" not in st.session_state:
 
 # Manual input form
 with st.form("manual_input"):
-    st.write("### ➕ Add a Stock to Your Portfolio")
+    st.subheader("Add a Stock to Your Portfolio")
     ticker_input = st.text_input("Ticker (e.g. AAPL)").upper()
     shares_input = st.number_input("Shares Owned", min_value=0.0001, format="%.4f")
     submitted = st.form_submit_button("Add to Portfolio")
@@ -29,10 +29,10 @@ with st.form("manual_input"):
                 st.session_state.portfolio.at[idx, "Shares"] += shares_input
             else:
                 st.session_state.portfolio = pd.concat([st.session_state.portfolio, new_row], ignore_index=True)
-            st.success(f"✅ Added {shares_input} shares of {ticker_input} to portfolio")
+            st.success(f"Added {shares_input} shares of {ticker_input} to portfolio")
 
 # CSV upload
-uploaded_file = st.file_uploader("📂 Or upload your portfolio CSV (Ticker, Shares)", type=["csv"])
+uploaded_file = st.file_uploader("Or upload your portfolio CSV (Ticker, Shares)", type=["csv"])
 if uploaded_file:
     uploaded_portfolio = pd.read_csv(uploaded_file)
     combined = pd.concat([st.session_state.portfolio, uploaded_portfolio], ignore_index=True)
@@ -41,7 +41,7 @@ if uploaded_file:
 
 # Remove stock buttons
 if not st.session_state.portfolio.empty:
-    st.write("### 🧹 Remove a Stock")
+    st.subheader("Remove a Stock")
     for i, row in st.session_state.portfolio.iterrows():
         col1, col2 = st.columns([3, 1])
         col1.markdown(f"**{row['Ticker']} — {row['Shares']} shares**")
@@ -51,7 +51,7 @@ if not st.session_state.portfolio.empty:
 
 # Show current portfolio
 if not st.session_state.portfolio.empty:
-    st.write("### 📊 Your Current Portfolio")
+    st.subheader("Current Portfolio")
     st.dataframe(st.session_state.portfolio)
 
     end_date = datetime.today()
@@ -111,7 +111,7 @@ if not st.session_state.portfolio.empty:
             ax.plot(hist.index, hist["Close"].rolling(window=50).mean(), label="50-Day MA (Momentum)", color="orange")
             ax.plot(hist.index, hist["Close"].rolling(window=200).mean(), label="200-Day MA (Long-Term)", color="purple")
             ax.axhline(est_buy, color='green', linestyle='--', label='Est. Buy (5% below trend)')
-            ax.axhline(est_sell, color='red', linestyle='--', label='Est. Sell (30d forecast)')
+            ax.axhline(est_sell, color='red', linestyle='--', label='Est. Sell (30-day forecast)')
             ax.set_title(f"{ticker} — 1-Year Price History & Trend")
             ax.legend()
             charts.append((ticker, fig))
@@ -128,7 +128,7 @@ if not st.session_state.portfolio.empty:
             color = 'green' if val == 'BUY' else 'red'
             return f'color: {color}; font-weight: bold;'
 
-        st.write("### 💡 Portfolio Insights with Predictive Thresholds")
+        st.subheader("Portfolio Insights with Predictive Thresholds")
         styled_df = proj_df.style.applymap(color_signal, subset=["Signal"])
         st.dataframe(styled_df)
 
@@ -136,16 +136,16 @@ if not st.session_state.portfolio.empty:
         buffer = io.StringIO()
         proj_df.to_csv(buffer, index=False)
         st.download_button(
-            label="📥 Download Insights as CSV",
+            label="Download Insights as CSV",
             data=buffer.getvalue(),
             file_name="portfolio_insights.csv",
             mime="text/csv"
         )
 
         # Show charts after table
-        st.write("### 📈 Stock Price Charts with Prediction Thresholds")
+        st.subheader("Stock Price Charts with Prediction Thresholds")
         for ticker, fig in charts:
-            st.write(f"#### {ticker}")
+            st.write(f"{ticker}")
             st.pyplot(fig)
 else:
-    st.info("👈 Add stocks manually above or upload a CSV to get started!")
+    st.info("Add stocks manually above or upload a CSV to get started.")
