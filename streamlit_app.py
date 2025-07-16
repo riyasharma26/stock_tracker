@@ -39,20 +39,19 @@ if uploaded_file:
     combined = combined.groupby("Ticker", as_index=False).agg({"Shares": "sum"})
     st.session_state.portfolio = combined
 
-# Remove stock buttons
-if not st.session_state.portfolio.empty:
-    st.subheader("Remove a Stock")
-    for i, row in st.session_state.portfolio.iterrows():
-        col1, col2 = st.columns([3, 1])
-        col1.markdown(f"**{row['Ticker']} — {row['Shares']} shares**")
-        if col2.button("Remove", key=f"remove_{row['Ticker']}"):
-            st.session_state.portfolio = st.session_state.portfolio.drop(i).reset_index(drop=True)
-            st.experimental_rerun()
-
-# Show current portfolio
+# Show current portfolio with remove buttons inline
 if not st.session_state.portfolio.empty:
     st.subheader("Current Portfolio")
-    st.dataframe(st.session_state.portfolio)
+
+    for i, row in st.session_state.portfolio.iterrows():
+        ticker = row["Ticker"]
+        shares = row["Shares"]
+        col1, col2, col3 = st.columns([3, 2, 1])
+        col1.markdown(f"**{ticker}**")
+        col2.markdown(f"{shares} shares")
+        if col3.button("🗑️", key=f"remove_{ticker}"):
+            st.session_state.portfolio = st.session_state.portfolio.drop(i).reset_index(drop=True)
+            st.experimental_rerun()
 
     end_date = datetime.today()
     start_date = end_date - timedelta(days=365)
@@ -147,5 +146,6 @@ if not st.session_state.portfolio.empty:
         for ticker, fig in charts:
             st.write(f"{ticker}")
             st.pyplot(fig)
+
 else:
     st.info("Add stocks manually above or upload a CSV to get started.")
