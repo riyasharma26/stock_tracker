@@ -39,23 +39,19 @@ if uploaded_file:
     combined = combined.groupby("Ticker", as_index=False).agg({"Shares": "sum"})
     st.session_state.portfolio = combined
 
-# Show current portfolio in a clean table with inline delete
+# Show current portfolio with remove buttons inline
 if not st.session_state.portfolio.empty:
     st.subheader("Current Portfolio")
 
-    # Create a dynamic layout for each row
-    updated_rows = []
     for i, row in st.session_state.portfolio.iterrows():
-        cols = st.columns([4, 3, 1])
-        cols[0].markdown(f"**{row['Ticker']}**")
-        cols[1].markdown(f"{row['Shares']} shares")
-        if cols[2].button("🗑️", key=f"remove_{row['Ticker']}"):
+        ticker = row["Ticker"]
+        shares = row["Shares"]
+        col1, col2, col3 = st.columns([3, 2, 1])
+        col1.markdown(f"**{ticker}**")
+        col2.markdown(f"{shares} shares")
+        if col3.button("🗑️", key=f"remove_{ticker}"):
             st.session_state.portfolio = st.session_state.portfolio.drop(i).reset_index(drop=True)
             st.experimental_rerun()
-        updated_rows.append([row["Ticker"], row["Shares"]])
-
-    st.write("")  # Spacer line
-    st.dataframe(st.session_state.portfolio.reset_index(drop=True))
 
     end_date = datetime.today()
     start_date = end_date - timedelta(days=365)
