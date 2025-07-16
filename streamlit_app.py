@@ -4,7 +4,7 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 
-st.title("📈 Intelligent Stock Portfolio Tracker")
+st.title("Intelligent Stock Portfolio Tracker")
 
 # Upload CSV
 uploaded_file = st.file_uploader("Upload your portfolio CSV (Ticker, Shares)", type=["csv"])
