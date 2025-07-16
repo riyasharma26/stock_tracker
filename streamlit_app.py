@@ -7,17 +7,47 @@ import time
 
 st.title("Intelligent Stock Portfolio Tracker")
 
-# Upload CSV
-uploaded_file = st.file_uploader("Upload your portfolio CSV (Ticker, Shares)", type=["csv"])
+# Initialize session state to hold portfolio data
+if "portfolio" not in st.session_state:
+    st.session_state.portfolio = pd.DataFrame(columns=["Ticker", "Shares"])
+
+# Manual input form
+with st.form("manual_input"):
+    st.write("### Add a Stock to Your Portfolio")
+    ticker_input = st.text_input("Ticker (e.g. AAPL)").upper()
+    shares_input = st.number_input("Shares Owned", min_value=1, step=1)
+    submitted = st.form_submit_button("Add to Portfolio")
+
+    if submitted:
+        if ticker_input and shares_input > 0:
+            new_row = pd.DataFrame({"Ticker": [ticker_input], "Shares": [shares_input]})
+            # Avoid duplicate tickers: update shares if ticker exists
+            if ticker_input in st.session_state.portfolio["Ticker"].values:
+                idx = st.session_state.portfolio[st.session_state.portfolio["Ticker"] == ticker_input].index[0]
+                st.session_state.portfolio.at[idx, "Shares"] += shares_input
+            else:
+                st.session_state.portfolio = pd.concat([st.session_state.portfolio, new_row], ignore_index=True)
+            st.success(f"Added {shares_input} shares of {ticker_input} to portfolio")
+
+# CSV upload
+uploaded_file = st.file_uploader("Or upload your portfolio CSV (Ticker, Shares)", type=["csv"])
 if uploaded_file:
-    portfolio = pd.read_csv(uploaded_file)
-    st.write("### Your Portfolio", portfolio)
+    uploaded_portfolio = pd.read_csv(uploaded_file)
+    # Merge uploaded portfolio with manual input, summing shares for duplicates
+    combined = pd.concat([st.session_state.portfolio, uploaded_portfolio], ignore_index=True)
+    combined = combined.groupby("Ticker", as_index=False).agg({"Shares": "sum"})
+    st.session_state.portfolio = combined
+
+# Show current portfolio
+if not st.session_state.portfolio.empty:
+    st.write("### Your Current Portfolio")
+    st.dataframe(st.session_state.portfolio)
 
     end_date = datetime.today()
     start_date = end_date - timedelta(days=365)
     projections = []
 
-    for index, row in portfolio.iterrows():
+    for index, row in st.session_state.portfolio.iterrows():
         ticker = row["Ticker"]
         shares = row["Shares"]
 
@@ -63,8 +93,9 @@ if uploaded_file:
             st.error(f"Error fetching data for {ticker}: {e}")
             continue
 
-    # Show summary table
     if projections:
         proj_df = pd.DataFrame(projections)
         st.write("### 💡 Portfolio Insights")
         st.dataframe(proj_df)
+else:
+    st.info("Add stocks manually above or upload a CSV to get started!")
