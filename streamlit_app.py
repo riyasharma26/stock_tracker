@@ -15,7 +15,7 @@ if "portfolio" not in st.session_state:
 with st.form("manual_input"):
     st.write("### Add a Stock to Your Portfolio")
     ticker_input = st.text_input("Ticker (e.g. AAPL)").upper()
-    shares_input = st.number_input("Shares Owned", min_value=1, step=1)
+    shares_input = st.number_input("Shares Owned", min_value=0.0001, format="%.4f")
     submitted = st.form_submit_button("Add to Portfolio")
 
     if submitted:
