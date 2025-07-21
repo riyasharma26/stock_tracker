@@ -6,135 +6,102 @@ from datetime import datetime, timedelta
 import time
 from sklearn.linear_model import LinearRegression
 import numpy as np
+import io
 
-st.set_page_config(page_title="Stock Portfolio Tracker", layout="wide")
+st.set_page_config(layout="wide")
 st.title("Intelligent Stock Portfolio Tracker")
 
-# Initialize portfolio
+# Initialize session state
 if "portfolio" not in st.session_state:
     st.session_state.portfolio = pd.DataFrame(columns=["Ticker", "Shares"])
 
 tabs = st.tabs(["📊 Portfolio", "📉 Portfolio Insights", "📈 Weekly Picks", "ℹ️ How It Works"])
 
-# ============================
-# 📊 Portfolio Tab
-# ============================
+# --- Tab 1: Portfolio ---
 with tabs[0]:
-    col1, col2 = st.columns([1, 2])
+    # Manual input form
+    with st.form("manual_input"):
+        st.subheader("Add a Stock to Your Portfolio")
+        ticker_input = st.text_input("Ticker (e.g. AAPL)").upper()
+        shares_input = st.number_input("Shares Owned", min_value=0.0001, format="%.4f")
+        submitted = st.form_submit_button("Add to Portfolio")
 
-    with col1:
-        with st.form("manual_input"):
-            st.subheader("Add a Stock")
-            ticker_input = st.text_input("Ticker (e.g. AAPL)").upper()
-            shares_input = st.number_input("Shares Owned", min_value=0.0001, format="%.4f")
-            submitted = st.form_submit_button("Add to Portfolio")
+        if submitted:
+            if ticker_input and shares_input > 0:
+                new_row = pd.DataFrame({"Ticker": [ticker_input], "Shares": [shares_input]})
+                if ticker_input in st.session_state.portfolio["Ticker"].values:
+                    idx = st.session_state.portfolio[st.session_state.portfolio["Ticker"] == ticker_input].index[0]
+                    st.session_state.portfolio.at[idx, "Shares"] += shares_input
+                else:
+                    st.session_state.portfolio = pd.concat([st.session_state.portfolio, new_row], ignore_index=True)
+                st.success(f"Added {shares_input} shares of {ticker_input} to portfolio")
 
-            if submitted:
-                if ticker_input and shares_input > 0:
-                    new_row = pd.DataFrame({"Ticker": [ticker_input], "Shares": [shares_input]})
-                    if ticker_input in st.session_state.portfolio["Ticker"].values:
-                        idx = st.session_state.portfolio[st.session_state.portfolio["Ticker"] == ticker_input].index[0]
-                        st.session_state.portfolio.at[idx, "Shares"] += shares_input
-                    else:
-                        st.session_state.portfolio = pd.concat([st.session_state.portfolio, new_row], ignore_index=True)
-                    st.success(f"Added {shares_input} shares of {ticker_input} to portfolio")
+    # CSV Upload
+    uploaded_file = st.file_uploader("Or upload your portfolio CSV (Ticker, Shares)", type=["csv"])
+    if uploaded_file:
+        uploaded_portfolio = pd.read_csv(uploaded_file)
+        combined = pd.concat([st.session_state.portfolio, uploaded_portfolio], ignore_index=True)
+        combined = combined.groupby("Ticker", as_index=False).agg({"Shares": "sum"})
+        st.session_state.portfolio = combined
 
-        uploaded_file = st.file_uploader("Or upload CSV (Ticker, Shares)", type=["csv"])
-        if uploaded_file:
-            uploaded_portfolio = pd.read_csv(uploaded_file)
-            combined = pd.concat([st.session_state.portfolio, uploaded_portfolio], ignore_index=True)
-            st.session_state.portfolio = combined.groupby("Ticker", as_index=False).agg({"Shares": "sum"})
-
-    with col2:
+    # Current Portfolio Display
+    if not st.session_state.portfolio.empty:
         st.subheader("Current Portfolio")
-        portfolio_df = st.session_state.portfolio.copy()
-        for idx, row in portfolio_df.iterrows():
-            colA, colB, colC = st.columns([2, 2, 1])
-            with colA:
-                st.write(f"**{row['Ticker']}** - {row['Shares']} shares")
-            with colC:
-                if st.button("🗑️", key=f"remove_{idx}"):
-                    st.session_state.portfolio.drop(index=idx, inplace=True)
-                    st.session_state.portfolio.reset_index(drop=True, inplace=True)
-                    st.experimental_rerun()
-
-# ============================
-# 📈 Weekly Picks Tab
-# ============================
-with tabs[1]:
-    st.title("Weekly Trending Picks")
-
-    suggestions = ["NVDA", "MSFT", "GOOGL", "TSLA", "META"]
-    st.write("These trending stocks had strong performance this week and aren't in your portfolio:")
-
-    picks = []
-    for ticker in suggestions:
-        if ticker not in st.session_state.portfolio["Ticker"].values:
-            try:
-                stock = yf.Ticker(ticker)
-                time.sleep(1.5)
-                hist = stock.history(period="7d")
-                current = hist["Close"][-1]
-                prev = hist["Close"][0]
-                change = ((current - prev) / prev) * 100
-                if change > 2:
-                    picks.append({"Ticker": ticker, "Change (%)": round(change, 2), "Price": round(current, 2)})
-            except:
-                continue
-
-    if picks:
-        df_picks = pd.DataFrame(picks)
-        for _, row in df_picks.iterrows():
-            col1, col2, col3 = st.columns([2, 2, 1])
-            col1.write(f"**{row['Ticker']}**")
-            col2.write(f"{row['Change (%)']}% | ${row['Price']}")
-            if col3.button("➕ Add", key=f"add_{row['Ticker']}"):
-                new_row = pd.DataFrame({"Ticker": [row["Ticker"]], "Shares": [1]})
-                st.session_state.portfolio = pd.concat([st.session_state.portfolio, new_row], ignore_index=True)
-                st.success(f"{row['Ticker']} added with 1 share")
+        for i, row in st.session_state.portfolio.iterrows():
+            ticker = row["Ticker"]
+            shares = row["Shares"]
+            col1, col2, col3 = st.columns([3, 2, 1])
+            col1.markdown(f"**{ticker}**")
+            col2.markdown(f"{shares} shares")
+            if col3.button("🗑️", key=f"remove_{ticker}"):
+                st.session_state.portfolio = st.session_state.portfolio.drop(i).reset_index(drop=True)
                 st.experimental_rerun()
     else:
-        st.info("No standout picks this week.")
+        st.info("Add stocks manually above or upload a CSV to get started.")
 
-# ============================
-# 📉 Portfolio Insights Tab
-# ============================
-with tabs[2]:
-    st.title("📉 Portfolio Insights")
+# --- Tab 2: Portfolio Insights ---
+with tabs[1]:
+    st.subheader("Portfolio Insights with Predictive Thresholds")
 
     if not st.session_state.portfolio.empty:
         end_date = datetime.today()
         start_date = end_date - timedelta(days=365)
         projections = []
+        charts = []
 
         for index, row in st.session_state.portfolio.iterrows():
             ticker = row["Ticker"]
             shares = row["Shares"]
+
             try:
                 stock = yf.Ticker(ticker)
                 time.sleep(1.5)
                 hist = stock.history(start=start_date, end=end_date)
 
                 if hist.empty:
-                    st.warning(f"No data for {ticker}")
                     continue
 
                 current_price = hist["Close"][-1]
                 avg_50 = hist["Close"].rolling(window=50).mean().iloc[-1]
                 avg_200 = hist["Close"].rolling(window=200).mean().iloc[-1]
                 total_value = current_price * shares
+
                 cagr = 0.08
                 future_values = {f"{n}y": round(total_value * (1 + cagr) ** n, 2) for n in [1, 3, 5]}
+
+                # Linear regression prediction
+                hist_recent = hist[-90:].copy().reset_index()
+                hist_recent["Days"] = (hist_recent["Date"] - hist_recent["Date"].min()).dt.days
+                X = hist_recent[["Days"]]
+                y = hist_recent["Close"]
+                model = LinearRegression().fit(X, y)
+                current_day = hist_recent["Days"].max()
+                predicted_today = model.predict([[current_day]])[0]
+                predicted_in_30 = model.predict([[current_day + 30]])[0]
+                est_buy = round(predicted_today * 0.95, 2)
+                est_sell = round(predicted_in_30, 2)
+
                 signal = "BUY" if avg_50 > avg_200 else "HOLD"
-                color = "green" if signal == "BUY" else "red"
-
-                recent = hist[-90:].reset_index()
-                recent["Day"] = np.arange(len(recent))
-                model = LinearRegression()
-                model.fit(recent[["Day"]], recent["Close"])
-                next_30 = model.predict(np.array([[len(recent) + 30]]))[0]
-                buy_threshold = current_price * 0.95
-
                 projections.append({
                     "Ticker": ticker,
                     "Current Price": round(current_price, 2),
@@ -142,70 +109,100 @@ with tabs[2]:
                     "50-Day MA": round(avg_50, 2),
                     "200-Day MA": round(avg_200, 2),
                     "Signal": signal,
-                    "Buy Threshold": round(buy_threshold, 2),
-                    "30-Day Forecast": round(next_30, 2),
+                    "Est. Buy Price": est_buy,
+                    "Est. Sell Price": est_sell,
                     **future_values
                 })
 
-                # Chart
-                st.subheader(f"{ticker} Price Trend")
+                # Chart for each stock
                 fig, ax = plt.subplots()
-                ax.plot(hist.index, hist["Close"], label="Close Price", color="black")
-                ax.plot(hist.index, hist["Close"].rolling(window=50).mean(), label="50-Day MA", color="blue")
-                ax.plot(hist.index, hist["Close"].rolling(window=200).mean(), label="200-Day MA", color="orange")
-                ax.axhline(buy_threshold, linestyle="--", color="green", label="Buy Threshold")
-                ax.axhline(next_30, linestyle="--", color="red", label="30-Day Forecast")
-                ax.set_title(f"{ticker} - Historical Chart")
+                ax.plot(hist.index, hist["Close"], label="Close Price", color="blue")
+                ax.plot(hist.index, hist["Close"].rolling(window=50).mean(), label="50-Day MA", color="orange")
+                ax.plot(hist.index, hist["Close"].rolling(window=200).mean(), label="200-Day MA", color="purple")
+                ax.axhline(est_buy, color='green', linestyle='--', label='Est. Buy')
+                ax.axhline(est_sell, color='red', linestyle='--', label='Est. Sell')
+                ax.set_title(f"{ticker} — Price Trend & Buy/Sell Zones")
                 ax.legend()
-                st.pyplot(fig)
+                charts.append((ticker, fig))
 
             except Exception as e:
-                st.error(f"Error fetching {ticker}: {e}")
+                st.warning(f"Could not process {ticker}: {e}")
                 continue
 
         if projections:
-            df_proj = pd.DataFrame(projections)
-            df_proj["Signal"] = df_proj["Signal"].apply(lambda x: f":green[{x}]" if x == "BUY" else f":red[{x}]")
-            st.subheader("Summary Table")
-            st.dataframe(df_proj, use_container_width=True)
-            csv_download = df_proj.to_csv(index=False).encode("utf-8")
-            st.download_button("Download Insights CSV", csv_download, file_name="portfolio_insights.csv", mime="text/csv")
+            proj_df = pd.DataFrame(projections)
+
+            def color_signal(val):
+                color = 'green' if val == 'BUY' else 'red'
+                return f'color: {color}; font-weight: bold;'
+
+            styled_df = proj_df.style.applymap(color_signal, subset=["Signal"])
+            st.dataframe(styled_df, use_container_width=True)
+
+            buffer = io.StringIO()
+            proj_df.to_csv(buffer, index=False)
+            st.download_button(
+                label="Download Insights CSV",
+                data=buffer.getvalue(),
+                file_name="portfolio_insights.csv",
+                mime="text/csv"
+            )
+
+            # Show charts in new sub-tab
+            chart_tab = st.tabs(["📊 Stock Charts"])[0]
+            with chart_tab:
+                for ticker, fig in charts:
+                    st.write(f"**{ticker}**")
+                    st.pyplot(fig)
+
     else:
-        st.info("Add stocks in the Portfolio tab to generate insights.")
+        st.info("Add stocks in the Portfolio tab first to view insights.")
 
-# ============================
-# ℹ️ How It Works Tab
-# ============================
+# --- Tab 3: Weekly Picks ---
+with tabs[2]:
+    st.subheader("Weekly Growth Picks Outside Your Portfolio")
+    suggestions = ["NVDA", "SMCI", "MELI", "CRWD", "TSLA"]
+    current_tickers = st.session_state.portfolio["Ticker"].tolist()
+    for ticker in suggestions:
+        if ticker not in current_tickers:
+            st.markdown(f"**{ticker}** — Potential momentum stock")
+            if st.button(f"Add {ticker}", key=f"add_{ticker}"):
+                new_row = pd.DataFrame({"Ticker": [ticker], "Shares": [0]})
+                st.session_state.portfolio = pd.concat([st.session_state.portfolio, new_row], ignore_index=True)
+                st.success(f"{ticker} added to portfolio!")
+
+# --- Tab 4: How It Works ---
 with tabs[3]:
-    st.title("ℹ️ How It Works")
-
+    st.subheader("📘 How It Works")
     st.markdown("""
-    ## What is the Intelligent Stock Portfolio Tracker?
+**Welcome to the Intelligent Stock Portfolio Tracker!**
 
-    This tool helps you:
-    - **Track your holdings**
-    - **See predictions and trends**
-    - **Discover new investment opportunities**
+This tool helps you:
+- ✅ Track and visualize your personal stock portfolio
+- 📈 View predictive buy/sell price thresholds based on trendlines
+- 💡 Get weekly ideas for new growth stocks
+- 📊 Download insights in CSV format
 
-    ---
+---
 
-    ## 🧠 How It Works
+### 🔧 How to Use
+1. Go to **Portfolio tab** to manually add tickers or upload a CSV.
+2. Switch to **Portfolio Insights** to:
+   - See buy/sell recommendations
+   - View future projections
+   - Download your insights
+3. Visit **Weekly Picks** for stocks outside your portfolio that may grow.
+4. Use **🗑️** icons to remove tickers instantly.
 
-    1. **Data Fetching** from Yahoo Finance
-    2. **Moving Averages** (50 & 200-day)
-    3. **Trend Forecasting** using Linear Regression
-    4. **Future Growth Simulation** over 1, 3, 5 years at 8% CAGR
+---
 
-    ---
+### 📡 Methodology
+- Uses **Yahoo Finance** data
+- Calculates 50-day and 200-day moving averages
+- Applies **linear regression** for near-future forecasting
+- Gives BUY/HOLD signal based on momentum
 
-    ## 📋 How to Use It
+---
 
-    1. **Add stocks manually** or upload CSV
-    2. **See projections**, price charts, and trends
-    3. **Check the “Weekly Picks”** for new opportunities
-    4. **Download insights** for deeper analysis
-
-    ---
-
-    **Tip:** Revisit weekly for updated forecasts and buy signals.
+Try adding a few stocks like `AAPL`, `GOOG`, or `TSLA` and explore your smart dashboard!
     """)
