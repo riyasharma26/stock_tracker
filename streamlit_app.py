@@ -149,3 +149,45 @@ if not st.session_state.portfolio.empty:
 
 else:
     st.info("Add stocks manually above or upload a CSV to get started.")
+
+# ===========================
+# 🔥 Weekly Picks Tab Section
+# ===========================
+st.markdown("---")
+st.subheader("📈 Weekly Picks")
+
+weekly_picks = pd.DataFrame([
+    {"Ticker": "SMCI", "Price": 915.23, "Change (%)": 5.12},
+    {"Ticker": "TSLA", "Price": 283.47, "Change (%)": 3.48},
+    {"Ticker": "NVDA", "Price": 129.56, "Change (%)": 6.22},
+    {"Ticker": "META", "Price": 368.12, "Change (%)": 2.77},
+    {"Ticker": "AAPL", "Price": 189.65, "Change (%)": 1.89},
+])
+
+st.write("Top gainers this week not in your portfolio. Click to add:")
+
+for _, row in weekly_picks.iterrows():
+    ticker = row["Ticker"]
+    price = row["Price"]
+    change = row["Change (%)"]
+
+    col1, col2, col3, col4 = st.columns([2, 2, 2, 2])
+    with col1:
+        st.write(f"**{ticker}**")
+    with col2:
+        st.write(f"${price}")
+    with col3:
+        st.write(f"{change}%")
+    with col4:
+        if st.button(f"Add {ticker}", key=f"add_{ticker}"):
+            if ticker in st.session_state.portfolio["Ticker"].values:
+                idx = st.session_state.portfolio[
+                    st.session_state.portfolio["Ticker"] == ticker
+                ].index[0]
+                st.session_state.portfolio.at[idx, "Shares"] += 1
+            else:
+                new_row = pd.DataFrame({"Ticker": [ticker], "Shares": [1]})
+                st.session_state.portfolio = pd.concat(
+                    [st.session_state.portfolio, new_row], ignore_index=True
+                )
+            st.success(f"Added 1 share of {ticker} to portfolio!")
