@@ -9,7 +9,7 @@ import numpy as np
 import io
 
 st.set_page_config(layout="wide")
-st.title("Intelligent Stock Portfolio Tracker")
+st.title("Stock Portfolio Tracker")
 
 # Initialize session state
 if "portfolio" not in st.session_state:
