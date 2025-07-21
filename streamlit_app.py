@@ -163,11 +163,32 @@ with tabs[1]:
 with tabs[2]:
     st.subheader("📘 How It Works")
     st.markdown("""
-This tool helps you:
-- ✅ Track your stock portfolio
-- 📈 View predictive buy/sell signals
-- 💡 Discover weekly picks outside your portfolio
-- 📊 Download insights as CSV
+    ## What is the Intelligent Stock Portfolio Tracker?
 
-Add tickers, explore insights instantly, and monitor with smart signals.
+    This tool helps you:
+    - **Track your holdings**
+    - **See predictions and trends**
+    - **Discover new investment opportunities**
+
+    ---
+
+    ## 🧠 How It Works
+
+    1. **Data Fetching** from Yahoo Finance
+    2. **Moving Averages** (50 & 200-day)
+    3. **Trend Forecasting** using Linear Regression
+    4. **Future Growth Simulation** over 1, 3, 5 years at 8% CAGR
+
+    ---
+
+    ## 📋 How to Use It
+
+    1. **Add stocks manually** or upload CSV
+    2. **See projections**, price charts, and trends
+    3. **Check the “Weekly Picks”** for new opportunities
+    4. **Download insights** for deeper analysis
+
+    ---
+
+    **Tip:** Revisit weekly for updated forecasts and buy signals.
     """)
