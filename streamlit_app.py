@@ -15,7 +15,7 @@ st.title("📊 Intelligent Stock Portfolio Tracker")
 if "portfolio" not in st.session_state:
     st.session_state.portfolio = pd.DataFrame(columns=["Ticker", "Shares"])
 
-tab1, tab2 = st.tabs(["📁 My Portfolio", "🚀 Weekly Picks"])
+tab1, tab2, tab3 = st.tabs(["📁 My Portfolio", "🚀 Weekly Picks"], ["ℹ️ How It Works"])
 
 # ===================
 # 📁 Portfolio Tab
@@ -190,3 +190,68 @@ with tab2:
                         [st.session_state.portfolio, new_row], ignore_index=True
                     )
                 st.success(f"Added 1 share of {ticker} to portfolio!")
+
+# ================================
+# ℹ️ How It Works Tab Section
+# ================================
+with tab3:
+    st.title("ℹ️ How It Works")
+
+    st.markdown("""
+    ## 🔍 What is the Intelligent Stock Portfolio Tracker?
+
+    This tool is a smart, user-friendly stock portfolio tracker that:
+    - Lets you **manually add stocks** or **upload a CSV** of your holdings.
+    - Fetches **real-time historical stock data** using Yahoo Finance.
+    - Applies a **trend analysis and predictive model** to offer buy/sell signals.
+    - Helps you make **data-driven decisions** with easy-to-read insights and charts.
+    - Suggests **weekly picks** of trending stocks not yet in your portfolio.
+
+    ---
+
+    ## 🧠 How It Works
+
+    1. **Data Fetching**: Retrieves past 1-year of closing prices for each stock using `yfinance`.
+    2. **Moving Averages**: Calculates:
+        - 50-day moving average (momentum signal)
+        - 200-day moving average (long-term trend)
+    3. **Trend Forecasting**:
+        - Uses **Linear Regression** on the past 90 days to project price 30 days into the future.
+        - Suggests a **Buy Threshold** (5% below current trend) and a **Sell Estimate** (30-day projection).
+    4. **Growth Forecasting**:
+        - Simulates your stock value after 1, 3, and 5 years assuming a CAGR (default: 8%).
+
+    ---
+
+    ## 📋 How to Use It
+
+    ### 1. **Add to Portfolio**
+    - **Manual Entry**: Type in the stock ticker and number of shares.
+    - **CSV Upload**: Upload a file with `Ticker` and `Shares` columns.
+
+    ### 2. **Track Performance**
+    - View your portfolio holdings and delete individual stocks.
+    - Check current price, total value, buy/sell signals, and projected growth.
+    - Download the entire insights table as CSV.
+
+    ### 3. **Visualize Trends**
+    - For each stock, view a chart with:
+        - Closing Price
+        - 50-day and 200-day MAs
+        - Estimated buy/sell thresholds
+
+    ### 4. **Discover New Picks**
+    - Head to the **"Weekly Picks"** tab.
+    - Explore high-performing stocks from the past week not already in your portfolio.
+    - Instantly add them with one click.
+
+    ---
+
+    ## 💡 Tips
+    - Revisit your portfolio weekly to adjust based on updated signals.
+    - Add more shares over time to simulate dollar-cost averaging.
+    - Use the CSV download for offline analysis or tax prep.
+
+    ---
+    """)
+
