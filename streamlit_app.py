@@ -14,7 +14,7 @@ st.title("Intelligent Stock Portfolio Tracker")
 if "portfolio" not in st.session_state:
     st.session_state.portfolio = pd.DataFrame(columns=["Ticker", "Shares"])
 
-tabs = st.tabs(["📊 Portfolio", "📈 Weekly Picks", "ℹ️ How It Works"])
+tabs = st.tabs(["📊 Portfolio", "📉 Portfolio Insights", "📈 Weekly Picks", "ℹ️ How It Works"])
 
 # ============================
 # 📊 Portfolio Tab
@@ -58,78 +58,6 @@ with tabs[0]:
                     st.session_state.portfolio.reset_index(drop=True, inplace=True)
                     st.experimental_rerun()
 
-    if not st.session_state.portfolio.empty:
-        end_date = datetime.today()
-        start_date = end_date - timedelta(days=365)
-        projections = []
-
-        for index, row in st.session_state.portfolio.iterrows():
-            ticker = row["Ticker"]
-            shares = row["Shares"]
-            try:
-                stock = yf.Ticker(ticker)
-                time.sleep(1.5)
-                hist = stock.history(start=start_date, end=end_date)
-
-                if hist.empty:
-                    st.warning(f"No data for {ticker}")
-                    continue
-
-                current_price = hist["Close"][-1]
-                avg_50 = hist["Close"].rolling(window=50).mean().iloc[-1]
-                avg_200 = hist["Close"].rolling(window=200).mean().iloc[-1]
-                total_value = current_price * shares
-                cagr = 0.08
-                future_values = {f"{n}y": round(total_value * (1 + cagr) ** n, 2) for n in [1, 3, 5]}
-                signal = "BUY" if avg_50 > avg_200 else "HOLD"
-                color = "green" if signal == "BUY" else "red"
-
-                # Forecast
-                recent = hist[-90:].reset_index()
-                recent["Day"] = np.arange(len(recent))
-                model = LinearRegression()
-                model.fit(recent[["Day"]], recent["Close"])
-                next_30 = model.predict(np.array([[len(recent) + 30]]))[0]
-                buy_threshold = current_price * 0.95
-
-                projections.append({
-                    "Ticker": ticker,
-                    "Current Price": round(current_price, 2),
-                    "Total Value": round(total_value, 2),
-                    "50-Day MA": round(avg_50, 2),
-                    "200-Day MA": round(avg_200, 2),
-                    "Signal": signal,
-                    "Buy Threshold": round(buy_threshold, 2),
-                    "30-Day Forecast": round(next_30, 2),
-                    **future_values
-                })
-
-                # Plot
-                st.subheader(f"{ticker} Price Trend")
-                fig, ax = plt.subplots()
-                ax.plot(hist.index, hist["Close"], label="Close Price", color="black")
-                ax.plot(hist.index, hist["Close"].rolling(window=50).mean(), label="50-Day MA", color="blue")
-                ax.plot(hist.index, hist["Close"].rolling(window=200).mean(), label="200-Day MA", color="orange")
-                ax.axhline(buy_threshold, linestyle="--", color="green", label="Buy Threshold")
-                ax.axhline(next_30, linestyle="--", color="red", label="30-Day Forecast")
-                ax.set_title(f"{ticker} - Historical Chart")
-                ax.legend()
-                st.pyplot(fig)
-
-            except Exception as e:
-                st.error(f"Error fetching {ticker}: {e}")
-                continue
-
-        if projections:
-            df_proj = pd.DataFrame(projections)
-            df_proj["Signal"] = df_proj["Signal"].apply(lambda x: f":green[{x}]" if x == "BUY" else f":red[{x}]")
-            st.subheader("Portfolio Insights")
-            st.dataframe(df_proj, use_container_width=True)
-            csv_download = df_proj.to_csv(index=False).encode("utf-8")
-            st.download_button("Download Insights CSV", csv_download, file_name="portfolio_insights.csv", mime="text/csv")
-    else:
-        st.info("Add stocks to start tracking.")
-
 # ============================
 # 📈 Weekly Picks Tab
 # ============================
@@ -169,9 +97,86 @@ with tabs[1]:
         st.info("No standout picks this week.")
 
 # ============================
-# ℹ️ How It Works Tab
+# 📉 Portfolio Insights Tab
 # ============================
 with tabs[2]:
+    st.title("📉 Portfolio Insights")
+
+    if not st.session_state.portfolio.empty:
+        end_date = datetime.today()
+        start_date = end_date - timedelta(days=365)
+        projections = []
+
+        for index, row in st.session_state.portfolio.iterrows():
+            ticker = row["Ticker"]
+            shares = row["Shares"]
+            try:
+                stock = yf.Ticker(ticker)
+                time.sleep(1.5)
+                hist = stock.history(start=start_date, end=end_date)
+
+                if hist.empty:
+                    st.warning(f"No data for {ticker}")
+                    continue
+
+                current_price = hist["Close"][-1]
+                avg_50 = hist["Close"].rolling(window=50).mean().iloc[-1]
+                avg_200 = hist["Close"].rolling(window=200).mean().iloc[-1]
+                total_value = current_price * shares
+                cagr = 0.08
+                future_values = {f"{n}y": round(total_value * (1 + cagr) ** n, 2) for n in [1, 3, 5]}
+                signal = "BUY" if avg_50 > avg_200 else "HOLD"
+                color = "green" if signal == "BUY" else "red"
+
+                recent = hist[-90:].reset_index()
+                recent["Day"] = np.arange(len(recent))
+                model = LinearRegression()
+                model.fit(recent[["Day"]], recent["Close"])
+                next_30 = model.predict(np.array([[len(recent) + 30]]))[0]
+                buy_threshold = current_price * 0.95
+
+                projections.append({
+                    "Ticker": ticker,
+                    "Current Price": round(current_price, 2),
+                    "Total Value": round(total_value, 2),
+                    "50-Day MA": round(avg_50, 2),
+                    "200-Day MA": round(avg_200, 2),
+                    "Signal": signal,
+                    "Buy Threshold": round(buy_threshold, 2),
+                    "30-Day Forecast": round(next_30, 2),
+                    **future_values
+                })
+
+                # Chart
+                st.subheader(f"{ticker} Price Trend")
+                fig, ax = plt.subplots()
+                ax.plot(hist.index, hist["Close"], label="Close Price", color="black")
+                ax.plot(hist.index, hist["Close"].rolling(window=50).mean(), label="50-Day MA", color="blue")
+                ax.plot(hist.index, hist["Close"].rolling(window=200).mean(), label="200-Day MA", color="orange")
+                ax.axhline(buy_threshold, linestyle="--", color="green", label="Buy Threshold")
+                ax.axhline(next_30, linestyle="--", color="red", label="30-Day Forecast")
+                ax.set_title(f"{ticker} - Historical Chart")
+                ax.legend()
+                st.pyplot(fig)
+
+            except Exception as e:
+                st.error(f"Error fetching {ticker}: {e}")
+                continue
+
+        if projections:
+            df_proj = pd.DataFrame(projections)
+            df_proj["Signal"] = df_proj["Signal"].apply(lambda x: f":green[{x}]" if x == "BUY" else f":red[{x}]")
+            st.subheader("Summary Table")
+            st.dataframe(df_proj, use_container_width=True)
+            csv_download = df_proj.to_csv(index=False).encode("utf-8")
+            st.download_button("Download Insights CSV", csv_download, file_name="portfolio_insights.csv", mime="text/csv")
+    else:
+        st.info("Add stocks in the Portfolio tab to generate insights.")
+
+# ============================
+# ℹ️ How It Works Tab
+# ============================
+with tabs[3]:
     st.title("ℹ️ How It Works")
 
     st.markdown("""
